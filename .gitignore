@@ -1,0 +1,8 @@
+# Dependências do Node
+node_modules/
+
+# Banco de dados SQLite local
+finance.db
+
+# Logs de execução ou relatórios temporários
+*.log
