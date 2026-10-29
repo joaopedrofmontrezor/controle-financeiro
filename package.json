@@ -1,19 +1,27 @@
 {
   "name": "controle-financeiro",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Aplicação de controle financeiro pessoal desenvolvida em Node.js e SQLite.",
+  "main": "main.js",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node main.js",
+    "dev": "node --watch main.js",
+    "test": "node --test"
   },
+  "keywords": [
+    "controle-financeiro",
+    "financas-pessoais",
+    "nodejs",
+    "sqlite",
+    "javascript"
+  ],
+  "author": "João Pedro Ferreira Montrezor",
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/joaopedrofmontrezor/controle-financeiro.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/joaopedrofmontrezor/controle-financeiro/issues"
   },
