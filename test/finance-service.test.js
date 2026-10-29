@@ -28,7 +28,7 @@ beforeEach(() => {
     CREATE TABLE transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       description TEXT NOT NULL,
-      amount REAL NOT NULL,
+      amount INTEGER NOT NULL CHECK(amount > 0),
       type TEXT NOT NULL CHECK(type IN ('receita', 'despesa')),
       date TEXT NOT NULL
     );
@@ -68,9 +68,9 @@ test("aceita uma transação válida", () => {
     date: "2026-10-29",
   });
 
-  assert.deepEqual(resultado, {
+  assert.deepStrictEqual(resultado, {
     description: "Salário",
-    amount: 2500,
+    amount: 250000,
     type: "receita",
     date: "2026-10-29",
   });
@@ -133,6 +133,28 @@ test("cadastra e recupera uma transação do banco", () => {
   assert.equal(transacoes[0].amount, 150);
 });
 
+test("armazena valores monetários em centavos inteiros no banco", () => {
+  adicionarTransacao(db, {
+    description: "Venda",
+    amount: 25,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  const transacao = db
+    .prepare(
+      `
+      SELECT amount
+      FROM transactions
+      WHERE description = ?
+    `,
+    )
+    .get("Venda");
+
+  assert.equal(transacao.amount, 2500);
+  assert.equal(Number.isInteger(transacao.amount), true);
+});
+
 test("não cadastra transação com dados inválidos", () => {
   assert.throws(
     () =>
@@ -190,7 +212,7 @@ test("normaliza descrição e tipo da transação", () => {
     description: "  Salário mensal  ",
     amount: 2500,
     type: "RECEITA",
-    date: "2026-10-29"
+    date: "2026-10-29",
   });
 
   assert.equal(resultado.description, "Salário mensal");
@@ -199,14 +221,39 @@ test("normaliza descrição e tipo da transação", () => {
 
 test("rejeita valores com mais de duas casas decimais", () => {
   assert.throws(
-    () => validarTransacao({
-      description: "Compra",
-      amount: 10.123,
-      type: "despesa",
-      date: "2026-10-29"
-    }),
-    /duas casas decimais/i
+    () =>
+      validarTransacao({
+        description: "Compra",
+        amount: 10.123,
+        type: "despesa",
+        date: "2026-10-29",
+      }),
+    /duas casas decimais/i,
   );
+});
+
+test("rejeita valores que ultrapassam o limite seguro de centavos", () => {
+  assert.throws(
+    () =>
+      validarTransacao({
+        description: "Valor excessivo",
+        amount: Number.MAX_SAFE_INTEGER,
+        type: "receita",
+        date: "2026-10-29",
+      }),
+    /valor deve ser positivo e ter no máximo duas casas decimais/i,
+  );
+});
+
+test("converte valores decimais para centavos corretamente", () => {
+  const resultado = validarTransacao({
+    description: "Compra pequena",
+    amount: 0.29,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  assert.equal(resultado.amount, 29);
 });
 
 test("ordena o extrato da data mais recente para a mais antiga", () => {
@@ -214,14 +261,14 @@ test("ordena o extrato da data mais recente para a mais antiga", () => {
     description: "Compra antiga",
     amount: 20,
     type: "despesa",
-    date: "2026-10-20"
+    date: "2026-10-20",
   });
 
   adicionarTransacao(db, {
     description: "Compra recente",
     amount: 30,
     type: "despesa",
-    date: "2026-10-28"
+    date: "2026-10-28",
   });
 
   const transacoes = listarTransacoes(db);
@@ -235,14 +282,14 @@ test("calcula saldo negativo quando as despesas superam as receitas", () => {
     description: "Venda",
     amount: 100,
     type: "receita",
-    date: "2026-10-29"
+    date: "2026-10-29",
   });
 
   adicionarTransacao(db, {
     description: "Conta",
     amount: 180,
     type: "despesa",
-    date: "2026-10-29"
+    date: "2026-10-29",
   });
 
   const resumo = obterResumoFinanceiro(db);
