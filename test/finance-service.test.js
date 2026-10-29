@@ -298,3 +298,116 @@ test("calcula saldo negativo quando as despesas superam as receitas", () => {
   assert.equal(resumo.despesas, 180);
   assert.equal(resumo.saldo, -80);
 });
+
+
+test("rejeita transações que não são objetos válidos", () => {
+  for (const transacao of [null, undefined, [], "transação", 123]) {
+    assert.throws(
+      () => validarTransacao(transacao),
+      /transação deve ser um objeto válido/i,
+    );
+  }
+});
+
+test("rejeita descrição que não seja texto", () => {
+  for (const description of [123, true, {}, []]) {
+    assert.throws(
+      () =>
+        validarTransacao({
+          description,
+          amount: 10,
+          type: "receita",
+          date: "2026-10-29",
+        }),
+      /descrição não pode ficar vazia/i,
+    );
+  }
+});
+
+test("rejeita tipos de transação que não sejam texto", () => {
+  for (const type of [null, undefined, 123, true, {}]) {
+    assert.throws(
+      () =>
+        validarTransacao({
+          description: "Teste",
+          amount: 10,
+          type,
+          date: "2026-10-29",
+        }),
+      /tipo inválido/i,
+    );
+  }
+});
+
+test("rejeita datas que não sejam texto", () => {
+  for (const date of [null, undefined, 20261029, true, {}]) {
+    assert.throws(
+      () =>
+        validarTransacao({
+          description: "Teste",
+          amount: 10,
+          type: "receita",
+          date,
+        }),
+      /data inválida/i,
+    );
+  }
+});
+
+test("aceita valor monetário com vírgula decimal", () => {
+  const resultado = validarTransacao({
+    description: "Compra",
+    amount: "10,50",
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  assert.equal(resultado.amount, 1050);
+});
+
+test("rejeita valores monetários com formatos inválidos", () => {
+  for (const amount of ["", " ", "1e3", "10.123", true, null, {}, []]) {
+    assert.throws(
+      () =>
+        validarTransacao({
+          description: "Teste",
+          amount,
+          type: "receita",
+          date: "2026-10-29",
+        }),
+      /valor deve ser positivo e ter no máximo duas casas decimais/i,
+    );
+  }
+});
+
+test("aceita data válida com espaços externos", () => {
+  const resultado = validarTransacao({
+    description: "Teste",
+    amount: 10,
+    type: "receita",
+    date: " 2026-10-29 ",
+  });
+
+  assert.equal(resultado.date, "2026-10-29");
+});
+
+test("ordena transações da mesma data pelo ID decrescente", () => {
+  adicionarTransacao(db, {
+    description: "Primeira transação",
+    amount: 10,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  adicionarTransacao(db, {
+    description: "Segunda transação",
+    amount: 20,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  const transacoes = listarTransacoes(db);
+
+  assert.equal(transacoes[0].description, "Segunda transação");
+  assert.equal(transacoes[1].description, "Primeira transação");
+});

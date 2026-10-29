@@ -8,9 +8,34 @@ const rl = readline.createInterface({
   output: stdout,
 });
 
+let encerramentoSolicitado = false;
+
+function formatarMoeda(valor) {
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
+}
+
+function fecharRecursos() {
+  if (rl) {
+    rl.close();
+  }
+
+  if (db.open) {
+    db.close();
+  }
+}
+
+rl.on("SIGINT", () => {
+  encerramentoSolicitado = true;
+  console.log("\nEncerrando aplicação...");
+  fecharRecursos();
+});
+
 async function adicionarTransacao() {
   try {
-    const description = await rl.question("Descrição: ");
+    const description = (await rl.question("Descrição: ")).trim();
 
     const valorInformado = (await rl.question("Valor (ex.: 125,50): ")).trim();
 
@@ -21,9 +46,9 @@ async function adicionarTransacao() {
 
     const amount = Number(valorInformado.replace(",", "."));
 
-    const type = await rl.question("Tipo (receita/despesa): ");
+    const type = (await rl.question("Tipo (receita/despesa): ")).trim();
 
-    const date = await rl.question("Data (AAAA-MM-DD): ");
+    const date = (await rl.question("Data (AAAA-MM-DD): ")).trim();
 
     const id = financeService.adicionarTransacao(db, {
       description,
@@ -34,6 +59,10 @@ async function adicionarTransacao() {
 
     console.log(`Transação cadastrada com sucesso! ID: ${id}`);
   } catch (error) {
+    if (encerramentoSolicitado) {
+      return;
+    }
+
     console.error("Erro ao cadastrar transação:", error.message);
   }
 }
@@ -51,12 +80,11 @@ function listarTransacoes() {
     }
 
     for (const transacao of transacoes) {
-      const tipo = transacao.type.toUpperCase();
-      const valor = transacao.amount.toFixed(2).replace(".", ",");
-
       console.log(
         `ID: ${transacao.id} | ${transacao.date} | ` +
-          `${tipo} | R$ ${valor} | ${transacao.description}`,
+          `${transacao.type.toUpperCase()} | ` +
+          `${formatarMoeda(transacao.amount)} | ` +
+          `${transacao.description}`,
       );
     }
 
@@ -71,12 +99,6 @@ function calcularSaldo() {
     const { receitas, despesas, saldo } =
       financeService.obterResumoFinanceiro(db);
 
-    const formatarMoeda = (valor) =>
-      valor.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      });
-
     console.log("\n========== RESUMO FINANCEIRO ==========");
     console.log(`Receitas: ${formatarMoeda(receitas)}`);
     console.log(`Despesas: ${formatarMoeda(despesas)}`);
@@ -90,9 +112,7 @@ function calcularSaldo() {
 async function iniciarAplicacao() {
   console.log("\n=== CONTROLE FINANCEIRO ===");
 
-  let executando = true;
-
-  while (executando) {
+  while (!encerramentoSolicitado) {
     console.log(`
 1 - Cadastrar transação
 2 - Listar transações
@@ -116,7 +136,7 @@ async function iniciarAplicacao() {
         break;
 
       case "0":
-        executando = false;
+        encerramentoSolicitado = true;
         console.log("Aplicação encerrada.");
         break;
 
@@ -128,13 +148,17 @@ async function iniciarAplicacao() {
 
 iniciarAplicacao()
   .catch((error) => {
+    if (
+      encerramentoSolicitado ||
+      error.name === "AbortError" ||
+      error.code === "ERR_USE_AFTER_CLOSE"
+    ) {
+      return;
+    }
+
     console.error("Erro inesperado na aplicação:", error.message);
     process.exitCode = 1;
   })
   .finally(() => {
-    rl.close();
-
-    if (db.open) {
-      db.close();
-    }
+    fecharRecursos();
   });
