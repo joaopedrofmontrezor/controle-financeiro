@@ -5,4 +5,34 @@ node_modules/
 finance.db
 
 # Logs de execução ou relatórios temporários
+*.
+
+# Dependências
+node_modules/
+
+# Banco de dados local
+finance.db
+finance.db-shm
+finance.db-wal
+
+# Variáveis de ambiente e segredos
+.env
+.env.*
+!.env.example
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Cobertura de testes
+coverage/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# Configurações locais de editores
+.vscode/
+.idea/
