@@ -1,73 +1,38 @@
-
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 const db = require("./database");
+const financeService = require("./finance-service");
 
-const rl = readline.createInterface({ input: stdin, output: stdout });
-
-function validarData(data) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) {
-    return false;
-  }
-
-  const dataConvertida = new Date(`${data}T00:00:00.000Z`);
-
-  return (
-    !Number.isNaN(dataConvertida.getTime()) &&
-    dataConvertida.toISOString().slice(0, 10) === data
-  );
-}
+const rl = readline.createInterface({
+  input: stdin,
+  output: stdout,
+});
 
 async function adicionarTransacao() {
-  const description = (
-    await rl.question("Descrição: ")
-  ).trim();
-
-  if (!description) {
-    console.log("Erro: a descrição não pode ficar vazia.");
-    return;
-  }
-
-  const valorInformado = (
-    await rl.question("Valor (ex.: 125,50): ")
-  ).trim();
-
-  const amount = Number(valorInformado.replace(",", "."));
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    console.log("Erro: informe um valor numérico maior que zero.");
-    return;
-  }
-
-  const type = (
-    await rl.question("Tipo (receita/despesa): ")
-  ).trim().toLowerCase();
-
-  if (!["receita", "despesa"].includes(type)) {
-    console.log("Erro: tipo inválido.");
-    return;
-  }
-
-  const date = (
-    await rl.question("Data (AAAA-MM-DD): ")
-  ).trim();
-
-  if (!validarData(date)) {
-    console.log("Erro: informe uma data válida no formato AAAA-MM-DD.");
-    return;
-  }
-
   try {
-    const stmt = db.prepare(`
-      INSERT INTO transactions (description, amount, type, date)
-      VALUES (?, ?, ?, ?)
-    `);
+    const description = await rl.question("Descrição: ");
 
-    const resultado = stmt.run(description, amount, type, date);
+    const valorInformado = (await rl.question("Valor (ex.: 125,50): ")).trim();
 
-    console.log(
-      `Transação cadastrada com sucesso! ID: ${resultado.lastInsertRowid}`
-    );
+    if (!/^\d+(?:[.,]\d{1,2})?$/.test(valorInformado)) {
+      console.log("Erro: informe um valor válido, como 125,50.");
+      return;
+    }
+
+    const amount = Number(valorInformado.replace(",", "."));
+
+    const type = await rl.question("Tipo (receita/despesa): ");
+
+    const date = await rl.question("Data (AAAA-MM-DD): ");
+
+    const id = financeService.adicionarTransacao(db, {
+      description,
+      amount,
+      type,
+      date,
+    });
+
+    console.log(`Transação cadastrada com sucesso! ID: ${id}`);
   } catch (error) {
     console.error("Erro ao cadastrar transação:", error.message);
   }
@@ -75,16 +40,13 @@ async function adicionarTransacao() {
 
 function listarTransacoes() {
   try {
-    const transacoes = db.prepare(`
-      SELECT id, description, amount, type, date
-      FROM transactions
-      ORDER BY date DESC, id DESC
-    `).all();
+    const transacoes = financeService.listarTransacoes(db);
 
     console.log("\n========== EXTRATO FINANCEIRO ==========");
 
     if (transacoes.length === 0) {
       console.log("Nenhuma transação cadastrada.");
+      console.log("========================================");
       return;
     }
 
@@ -94,7 +56,7 @@ function listarTransacoes() {
 
       console.log(
         `ID: ${transacao.id} | ${transacao.date} | ` +
-        `${tipo} | R$ ${valor} | ${transacao.description}`
+          `${tipo} | R$ ${valor} | ${transacao.description}`,
       );
     }
 
@@ -106,28 +68,18 @@ function listarTransacoes() {
 
 function calcularSaldo() {
   try {
-    const resultado = db.prepare(`
-      SELECT
-        COALESCE(SUM(
-          CASE WHEN type = 'receita' THEN amount ELSE 0 END
-        ), 0) AS receitas,
-        COALESCE(SUM(
-          CASE WHEN type = 'despesa' THEN amount ELSE 0 END
-        ), 0) AS despesas
-      FROM transactions
-    `).get();
-
-    const saldo = resultado.receitas - resultado.despesas;
+    const { receitas, despesas, saldo } =
+      financeService.obterResumoFinanceiro(db);
 
     const formatarMoeda = (valor) =>
       valor.toLocaleString("pt-BR", {
         style: "currency",
-        currency: "BRL"
+        currency: "BRL",
       });
 
     console.log("\n========== RESUMO FINANCEIRO ==========");
-    console.log(`Receitas: ${formatarMoeda(resultado.receitas)}`);
-    console.log(`Despesas: ${formatarMoeda(resultado.despesas)}`);
+    console.log(`Receitas: ${formatarMoeda(receitas)}`);
+    console.log(`Despesas: ${formatarMoeda(despesas)}`);
     console.log(`Saldo:    ${formatarMoeda(saldo)}`);
     console.log("=======================================");
   } catch (error) {
@@ -136,17 +88,17 @@ function calcularSaldo() {
 }
 
 async function iniciarAplicacao() {
-  let executando = true;
-
   console.log("\n=== CONTROLE FINANCEIRO ===");
+
+  let executando = true;
 
   while (executando) {
     console.log(`
-    1 - Cadastrar transação
-    2 - Listar transações
-    3 - Consultar saldo
-    0 - Sair
-  `);
+1 - Cadastrar transação
+2 - Listar transações
+3 - Consultar saldo
+0 - Sair
+`);
 
     const opcao = (await rl.question("Escolha uma opção: ")).trim();
 
@@ -181,5 +133,8 @@ iniciarAplicacao()
   })
   .finally(() => {
     rl.close();
-    db.close();
+
+    if (db.open) {
+      db.close();
+    }
   });
