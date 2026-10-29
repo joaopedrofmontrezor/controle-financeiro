@@ -1,19 +1,11 @@
-# Dependências do Node
-node_modules/
-
-# Banco de dados SQLite local
-finance.db
-
-# Logs de execução ou relatórios temporários
-*.
-
 # Dependências
 node_modules/
 
-# Banco de dados local
+# Banco de dados local SQLite
 finance.db
 finance.db-shm
 finance.db-wal
+finance.db-journal
 
 # Variáveis de ambiente e segredos
 .env
@@ -33,6 +25,6 @@ coverage/
 .DS_Store
 Thumbs.db
 
-# Configurações locais de editores
+# Configurações locais do editor
 .vscode/
 .idea/
