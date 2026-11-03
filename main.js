@@ -354,20 +354,50 @@ async function excluirTransacao() {
   }
 }
 
+
 function calcularSaldo() {
   try {
-    const { receitas, despesas, saldo } =
-      financeService.obterResumoFinanceiro(db);
+    const {
+      receitas,
+      despesas,
+      saldo,
+      quantidadeReceitas,
+      quantidadeDespesas,
+      maiorReceita,
+      maiorDespesa,
+      percentualDespesas,
+    } = financeService.obterResumoFinanceiro(db);
 
-    console.log("\n========== RESUMO FINANCEIRO ==========");
-    console.log(`Receitas: ${formatarMoeda(receitas)}`);
-    console.log(`Despesas: ${formatarMoeda(despesas)}`);
-    console.log(`Saldo:    ${formatarMoeda(saldo)}`);
-    console.log("=======================================");
+    console.log("\n");
+    console.log("==============================================");
+    console.log("             DASHBOARD FINANCEIRO             ");
+    console.log("==============================================");
+
+    console.log("\nRESUMO GERAL");
+    console.log("----------------------------------------------");
+    console.log(`Total de receitas:       ${formatarMoeda(receitas)}`);
+    console.log(`Total de despesas:       ${formatarMoeda(despesas)}`);
+    console.log(`Saldo atual:             ${formatarMoeda(saldo)}`);
+
+    console.log("\nESTATÍSTICAS");
+    console.log("----------------------------------------------");
+    console.log(`Quantidade de receitas:  ${quantidadeReceitas}`);
+    console.log(`Quantidade de despesas:  ${quantidadeDespesas}`);
+    console.log(`Maior receita:            ${formatarMoeda(maiorReceita)}`);
+    console.log(`Maior despesa:            ${formatarMoeda(maiorDespesa)}`);
+
+    console.log("\nINDICADORES");
+    console.log("----------------------------------------------");
+    console.log(
+      `Despesas sobre receitas: ${percentualDespesas.toFixed(2)}%`
+    );
+
+    console.log("\n==============================================");
   } catch (error) {
-    console.error("Erro ao calcular saldo:", error.message);
+    console.error("Erro ao exibir dashboard:", error.message);
   }
 }
+
 
 async function exportarTransacoes() {
   try {

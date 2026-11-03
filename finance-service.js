@@ -299,19 +299,45 @@ function obterResumoFinanceiro(db) {
           SUM(CASE WHEN type = 'receita' THEN amount ELSE 0 END),
           0
         ) AS receitas,
+
         COALESCE(
           SUM(CASE WHEN type = 'despesa' THEN amount ELSE 0 END),
           0
-        ) AS despesas
+        ) AS despesas,
+
+        COUNT(CASE WHEN type = 'receita' THEN 1 END) AS quantidadeReceitas,
+
+        COUNT(CASE WHEN type = 'despesa' THEN 1 END) AS quantidadeDespesas,
+
+        COALESCE(
+          MAX(CASE WHEN type = 'receita' THEN amount END),
+          0
+        ) AS maiorReceita,
+
+        COALESCE(
+          MAX(CASE WHEN type = 'despesa' THEN amount END),
+          0
+        ) AS maiorDespesa
+
       FROM transactions
     `,
     )
     .get();
 
+  const receitas = resultado.receitas / 100;
+  const despesas = resultado.despesas / 100;
+
+  const percentualDespesas = receitas > 0 ? (despesas / receitas) * 100 : 0;
+
   return {
-    receitas: resultado.receitas / 100,
-    despesas: resultado.despesas / 100,
+    receitas,
+    despesas,
     saldo: (resultado.receitas - resultado.despesas) / 100,
+    quantidadeReceitas: resultado.quantidadeReceitas,
+    quantidadeDespesas: resultado.quantidadeDespesas,
+    maiorReceita: resultado.maiorReceita / 100,
+    maiorDespesa: resultado.maiorDespesa / 100,
+    percentualDespesas,
   };
 }
 
