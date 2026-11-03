@@ -88,11 +88,76 @@ function exibirTransacoes(transacoes, titulo = "EXTRATO FINANCEIRO") {
   console.log("=".repeat(titulo.length + 22));
 }
 
-function listarTransacoes() {
+async function exibirTransacoesPaginadas(
+  transacoes,
+  titulo = "EXTRATO FINANCEIRO",
+) {
+  const itensPorPagina = 10;
+  let paginaAtual = 1;
+
+  while (!encerramentoSolicitado) {
+    const resultado = financeService.paginarTransacoes(
+      transacoes,
+      paginaAtual,
+      itensPorPagina,
+    );
+
+    console.log(
+      `\nPágina ${resultado.paginaAtual} de ${resultado.totalPaginas}` +
+        ` | Total de registros: ${resultado.totalItens}`,
+    );
+
+    exibirTransacoes(resultado.dados, titulo);
+
+    // Não solicita navegação quando existe apenas uma página.
+    if (resultado.totalPaginas <= 1) {
+      return;
+    }
+
+    console.log("\n[n] Próxima página");
+    console.log("[p] Página anterior");
+    console.log("[s] Sair da consulta");
+
+    const opcao = (await rl.question("Escolha uma opção: "))
+      .trim()
+      .toLowerCase();
+
+    switch (opcao) {
+      case "n":
+        if (paginaAtual < resultado.totalPaginas) {
+          paginaAtual++;
+        } else {
+          console.log("Você já está na última página.");
+        }
+        break;
+
+      case "p":
+        if (paginaAtual > 1) {
+          paginaAtual--;
+        } else {
+          console.log("Você já está na primeira página.");
+        }
+        break;
+
+      case "s":
+        return;
+
+      default:
+        console.log("Opção inválida. Use n, p ou s.");
+    }
+  }
+}
+
+async function listarTransacoes() {
   try {
     const transacoes = financeService.listarTransacoes(db);
-    exibirTransacoes(transacoes);
+
+    await exibirTransacoesPaginadas(transacoes, "EXTRATO FINANCEIRO");
   } catch (error) {
+    if (encerramentoSolicitado) {
+      return;
+    }
+
     console.error("Erro ao listar transações:", error.message);
   }
 }
@@ -136,7 +201,7 @@ async function filtrarTransacoes() {
       descricao,
     });
 
-    exibirTransacoes(transacoes, "RESULTADO DOS FILTROS");
+    await exibirTransacoesPaginadas(transacoes, "RESULTADO DOS FILTROS");
   } catch (error) {
     if (encerramentoSolicitado) {
       return;
@@ -324,7 +389,7 @@ async function iniciarAplicacao() {
         break;
 
       case "2":
-        listarTransacoes();
+        await listarTransacoes();
         break;
 
       case "3":
