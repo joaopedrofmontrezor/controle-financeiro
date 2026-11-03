@@ -11,6 +11,7 @@ const {
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  paginarTransacoes,
   obterTransacaoPorId,
   atualizarTransacao,
   excluirTransacao,
@@ -846,4 +847,137 @@ test("não exclui outras transações ao excluir uma específica", () => {
 
 test("rejeita exclusão de uma transação inexistente", () => {
   assert.throws(() => excluirTransacao(db, 999), /transação não encontrada/i);
+});
+
+test("retorna os primeiros 10 registros da primeira página", () => {
+  const transacoes = Array.from({ length: 25 }, (_, i) => ({
+    id: i + 1,
+    description: `Transação ${i + 1}`,
+  }));
+
+  const resultado = paginarTransacoes(transacoes);
+
+  assert.equal(resultado.dados.length, 10);
+  assert.equal(resultado.dados[0].id, 1);
+  assert.equal(resultado.dados[9].id, 10);
+  assert.equal(resultado.paginaAtual, 1);
+});
+
+test("retorna os registros corretos da segunda página", () => {
+  const transacoes = Array.from({ length: 25 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes, 2);
+
+  assert.equal(resultado.dados.length, 10);
+  assert.equal(resultado.dados[0].id, 11);
+  assert.equal(resultado.dados[9].id, 20);
+  assert.equal(resultado.paginaAtual, 2);
+});
+
+test("retorna apenas os registros restantes na última página", () => {
+  const transacoes = Array.from({ length: 25 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes, 3);
+
+  assert.equal(resultado.dados.length, 5);
+  assert.equal(resultado.dados[0].id, 21);
+  assert.equal(resultado.dados[4].id, 25);
+});
+
+test("calcula corretamente o total de páginas", () => {
+  const transacoes = Array.from({ length: 25 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes);
+
+  assert.equal(resultado.totalPaginas, 3);
+  assert.equal(resultado.totalItens, 25);
+  assert.equal(resultado.itensPorPagina, 10);
+});
+
+test("retorna uma página vazia quando não existem transações", () => {
+  const resultado = paginarTransacoes([]);
+
+  assert.deepEqual(resultado.dados, []);
+  assert.equal(resultado.totalItens, 0);
+  assert.equal(resultado.totalPaginas, 1);
+  assert.equal(resultado.paginaAtual, 1);
+});
+
+test("funciona quando existem menos registros que o limite da página", () => {
+  const transacoes = [{ id: 1 }, { id: 2 }, { id: 3 }];
+
+  const resultado = paginarTransacoes(transacoes);
+
+  assert.equal(resultado.dados.length, 3);
+  assert.equal(resultado.totalPaginas, 1);
+});
+
+test("permite personalizar a quantidade de itens por página", () => {
+  const transacoes = Array.from({ length: 12 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes, 1, 5);
+
+  assert.equal(resultado.dados.length, 5);
+  assert.equal(resultado.itensPorPagina, 5);
+  assert.equal(resultado.totalPaginas, 3);
+});
+
+test("ajusta a página quando o número informado ultrapassa o total", () => {
+  const transacoes = Array.from({ length: 15 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes, 99);
+
+  assert.equal(resultado.paginaAtual, 2);
+  assert.equal(resultado.dados.length, 5);
+  assert.equal(resultado.dados[0].id, 11);
+});
+
+test("rejeita valores que não sejam arrays de transações", () => {
+  for (const transacoes of [null, undefined, {}, "teste", 123]) {
+    assert.throws(
+      () => paginarTransacoes(transacoes),
+      /transações devem ser fornecidas em um array/i,
+    );
+  }
+});
+
+test("rejeita números de página inválidos", () => {
+  for (const pagina of [0, -1, 1.5, "2", null, NaN, Infinity]) {
+    assert.throws(
+      () => paginarTransacoes([], pagina),
+      /página inválida/i,
+    );
+  }
+});
+
+test("rejeita quantidades inválidas de itens por página", () => {
+  for (const quantidade of [0, -1, 1.5, "10", null, NaN, Infinity]) {
+    assert.throws(
+      () => paginarTransacoes([], 1, quantidade),
+      /quantidade de itens por página inválida/i,
+    );
+  }
+});
+
+test("preserva a ordem original das transações", () => {
+  const transacoes = Array.from({ length: 15 }, (_, i) => ({
+    id: i + 1,
+  }));
+
+  const resultado = paginarTransacoes(transacoes, 2, 5);
+
+  assert.deepEqual(
+    resultado.dados.map((transacao) => transacao.id),
+    [6, 7, 8, 9, 10],
+  );
 });
