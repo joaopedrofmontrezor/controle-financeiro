@@ -28,3 +28,6 @@ Thumbs.db
 # Configurações locais do editor
 .vscode/
 .idea/
+
+# Exportações financeiras (dados pessoais)
+exports/

@@ -315,6 +315,46 @@ function obterResumoFinanceiro(db) {
   };
 }
 
+function gerarCsvTransacoes(transacoes) {
+  if (!Array.isArray(transacoes)) {
+    throw new Error("As transações devem ser fornecidas em um array.");
+  }
+
+  const cabecalho = ["ID", "Descrição", "Valor", "Tipo", "Data"];
+
+  function escaparCampo(valor) {
+    let texto = String(valor ?? "");
+
+    if (/^[\s]*[=+\-@]/.test(texto)) {
+      texto = `'${texto}`;
+    }
+
+    return `"${texto.replace(/"/g, '""')}"`;
+  }
+
+  function formatarValor(valor) {
+    return Number(valor).toFixed(2).replace(".", ",");
+  }
+
+  const linhas = transacoes.map((transacao) => {
+    return [
+      transacao.id,
+      transacao.description,
+      formatarValor(transacao.amount),
+      transacao.type,
+      transacao.date,
+    ]
+      .map(escaparCampo)
+      .join(";");
+  });
+
+  const conteudo = [cabecalho.map(escaparCampo).join(";"), ...linhas].join(
+    "\r\n",
+  );
+
+  return "\uFEFF" + conteudo;
+}
+
 module.exports = {
   validarData,
   validarId,
@@ -327,4 +367,5 @@ module.exports = {
   excluirTransacao,
   filtrarTransacoes,
   obterResumoFinanceiro,
+  gerarCsvTransacoes,
 };
