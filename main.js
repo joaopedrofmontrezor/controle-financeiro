@@ -2,6 +2,8 @@ const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 const db = require("./database");
 const financeService = require("./finance-service");
+const fs = require("node:fs/promises");
+const path = require("node:path");
 
 const rl = readline.createInterface({
   input: stdin,
@@ -367,6 +369,90 @@ function calcularSaldo() {
   }
 }
 
+async function exportarTransacoes() {
+  try {
+    console.log("\n========== EXPORTAR TRANSAÇÕES ==========");
+    console.log("1 - Exportar todas as transações");
+    console.log("2 - Exportar transações com filtros");
+
+    const opcao = (await rl.question("Escolha uma opção: ")).trim();
+
+    let transacoes;
+
+    if (opcao === "1") {
+      transacoes = financeService.listarTransacoes(db);
+    } else if (opcao === "2") {
+      console.log("\nPressione Enter para ignorar um filtro.");
+
+      const dataInicial = (
+        await rl.question("Data inicial (AAAA-MM-DD): ")
+      ).trim();
+
+      const dataFinal = (await rl.question("Data final (AAAA-MM-DD): ")).trim();
+
+      console.log("\nTipos disponíveis:");
+      console.log("1 - Receita");
+      console.log("2 - Despesa");
+
+      const opcaoTipo = (
+        await rl.question("Tipo (1/2 ou Enter para todos): ")
+      ).trim();
+
+      let tipo = "";
+
+      if (opcaoTipo === "1") {
+        tipo = "receita";
+      } else if (opcaoTipo === "2") {
+        tipo = "despesa";
+      } else if (opcaoTipo !== "") {
+        console.log("Erro: opção de tipo inválida.");
+        return;
+      }
+
+      const descricao = (await rl.question("Buscar por descrição: ")).trim();
+
+      transacoes = financeService.filtrarTransacoes(db, {
+        dataInicial,
+        dataFinal,
+        tipo,
+        descricao,
+      });
+    } else {
+      console.log("Opção inválida.");
+      return;
+    }
+
+    if (encerramentoSolicitado) return;
+
+    if (transacoes.length === 0) {
+      console.log("Nenhuma transação encontrada para exportação.");
+      return;
+    }
+
+    const conteudoCsv = financeService.gerarCsvTransacoes(transacoes);
+
+    const diretorioExportacoes = path.join(__dirname, "exports");
+
+    await fs.mkdir(diretorioExportacoes, { recursive: true });
+
+    const agora = new Date();
+    const timestamp = agora.toISOString().replace(/[:.]/g, "-");
+
+    const nomeArquivo = `transacoes-${timestamp}.csv`;
+    const caminhoArquivo = path.join(diretorioExportacoes, nomeArquivo);
+
+    await fs.writeFile(caminhoArquivo, conteudoCsv, "utf8");
+
+    console.log("\nExportação realizada com sucesso!");
+    console.log(`Registros exportados: ${transacoes.length}`);
+    console.log(`Arquivo: ${caminhoArquivo}`);
+  } catch (error) {
+    if (encerramentoSolicitado) return;
+
+    console.error("Erro ao exportar transações:", error.message);
+  }
+}
+
 async function iniciarAplicacao() {
   console.log("\n=== CONTROLE FINANCEIRO ===");
 
@@ -378,6 +464,7 @@ async function iniciarAplicacao() {
 4 - Filtrar transações
 5 - Editar transação
 6 - Excluir transação
+7 - Exportar transações para CSV
 0 - Sair
 `);
 
@@ -406,6 +493,10 @@ async function iniciarAplicacao() {
 
       case "6":
         await excluirTransacao();
+        break;
+
+      case "7":
+        await exportarTransacoes();
         break;
       case "0":
         encerramentoSolicitado = true;
