@@ -1,3 +1,4 @@
+
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 const db = require("./database");
@@ -37,7 +38,9 @@ async function adicionarTransacao() {
   try {
     const description = (await rl.question("Descrição: ")).trim();
 
-    const valorInformado = (await rl.question("Valor (ex.: 125,50): ")).trim();
+    const valorInformado = (
+      await rl.question("Valor (ex.: 125,50): ")
+    ).trim();
 
     if (!/^\d+(?:[.,]\d{1,2})?$/.test(valorInformado)) {
       console.log("Erro: informe um valor válido, como 125,50.");
@@ -46,9 +49,13 @@ async function adicionarTransacao() {
 
     const amount = Number(valorInformado.replace(",", "."));
 
-    const type = (await rl.question("Tipo (receita/despesa): ")).trim();
+    const type = (
+      await rl.question("Tipo (receita/despesa): ")
+    ).trim();
 
-    const date = (await rl.question("Data (AAAA-MM-DD): ")).trim();
+    const date = (
+      await rl.question("Data (AAAA-MM-DD): ")
+    ).trim();
 
     const id = financeService.adicionarTransacao(db, {
       description,
@@ -67,30 +74,86 @@ async function adicionarTransacao() {
   }
 }
 
+function exibirTransacoes(transacoes, titulo = "EXTRATO FINANCEIRO") {
+  console.log(`\n========== ${titulo} ==========`);
+
+  if (transacoes.length === 0) {
+    console.log("Nenhuma transação encontrada.");
+    console.log("=".repeat(titulo.length + 22));
+    return;
+  }
+
+  for (const transacao of transacoes) {
+    console.log(
+      `ID: ${transacao.id} | ${transacao.date} | ` +
+        `${transacao.type.toUpperCase()} | ` +
+        `${formatarMoeda(transacao.amount)} | ` +
+        `${transacao.description}`,
+    );
+  }
+
+  console.log("=".repeat(titulo.length + 22));
+}
+
 function listarTransacoes() {
   try {
     const transacoes = financeService.listarTransacoes(db);
+    exibirTransacoes(transacoes);
+  } catch (error) {
+    console.error("Erro ao listar transações:", error.message);
+  }
+}
 
-    console.log("\n========== EXTRATO FINANCEIRO ==========");
+async function filtrarTransacoes() {
+  try {
+    console.log("\n========== FILTRAR TRANSAÇÕES ==========");
+    console.log("Pressione Enter para ignorar um filtro.");
 
-    if (transacoes.length === 0) {
-      console.log("Nenhuma transação cadastrada.");
-      console.log("========================================");
+    const dataInicial = (
+      await rl.question("Data inicial (AAAA-MM-DD): ")
+    ).trim();
+
+    const dataFinal = (
+      await rl.question("Data final (AAAA-MM-DD): ")
+    ).trim();
+
+    console.log("\nTipos disponíveis:");
+    console.log("1 - Receita");
+    console.log("2 - Despesa");
+
+    const opcaoTipo = (
+      await rl.question("Tipo (1/2 ou Enter para todos): ")
+    ).trim();
+
+    let tipo = "";
+
+    if (opcaoTipo === "1") {
+      tipo = "receita";
+    } else if (opcaoTipo === "2") {
+      tipo = "despesa";
+    } else if (opcaoTipo !== "") {
+      console.log("Erro: opção de tipo inválida.");
       return;
     }
 
-    for (const transacao of transacoes) {
-      console.log(
-        `ID: ${transacao.id} | ${transacao.date} | ` +
-          `${transacao.type.toUpperCase()} | ` +
-          `${formatarMoeda(transacao.amount)} | ` +
-          `${transacao.description}`,
-      );
+    const descricao = (
+      await rl.question("Buscar por descrição: ")
+    ).trim();
+
+    const transacoes = financeService.filtrarTransacoes(db, {
+      dataInicial,
+      dataFinal,
+      tipo,
+      descricao,
+    });
+
+    exibirTransacoes(transacoes, "RESULTADO DOS FILTROS");
+  } catch (error) {
+    if (encerramentoSolicitado) {
+      return;
     }
 
-    console.log("========================================");
-  } catch (error) {
-    console.error("Erro ao listar transações:", error.message);
+    console.error("Erro ao filtrar transações:", error.message);
   }
 }
 
@@ -117,10 +180,13 @@ async function iniciarAplicacao() {
 1 - Cadastrar transação
 2 - Listar transações
 3 - Consultar saldo
+4 - Filtrar transações
 0 - Sair
 `);
 
-    const opcao = (await rl.question("Escolha uma opção: ")).trim();
+    const opcao = (
+      await rl.question("Escolha uma opção: ")
+    ).trim();
 
     switch (opcao) {
       case "1":
@@ -133,6 +199,10 @@ async function iniciarAplicacao() {
 
       case "3":
         calcularSaldo();
+        break;
+
+      case "4":
+        await filtrarTransacoes();
         break;
 
       case "0":
