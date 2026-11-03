@@ -199,18 +199,28 @@ test("calcula corretamente receitas, despesas e saldo", () => {
     date: "2026-10-28",
   });
 
-  assert.deepEqual(obterResumoFinanceiro(db), {
+  assert.deepStrictEqual(obterResumoFinanceiro(db), {
     receitas: 2300,
     despesas: 750,
     saldo: 1550,
+    quantidadeReceitas: 2,
+    quantidadeDespesas: 1,
+    maiorReceita: 2000,
+    maiorDespesa: 750,
+    percentualDespesas: (750 / 2300) * 100,
   });
 });
 
 test("retorna valores zerados quando não há transações", () => {
-  assert.deepEqual(obterResumoFinanceiro(db), {
+  assert.deepStrictEqual(obterResumoFinanceiro(db), {
     receitas: 0,
     despesas: 0,
     saldo: 0,
+    quantidadeReceitas: 0,
+    quantidadeDespesas: 0,
+    maiorReceita: 0,
+    maiorDespesa: 0,
+    percentualDespesas: 0,
   });
 });
 
