@@ -109,6 +109,85 @@ function listarTransacoes(db) {
   }));
 }
 
+function filtrarTransacoes(db, filtros = {}) {
+  if (
+    filtros === null ||
+    typeof filtros !== "object" ||
+    Array.isArray(filtros)
+  ) {
+    throw new Error("Os filtros devem ser informados em um objeto válido.");
+  }
+
+  const { dataInicial, dataFinal, tipo, descricao } = filtros;
+
+  const condicoes = [];
+  const parametros = [];
+
+  if (dataInicial !== undefined && dataInicial !== "") {
+    if (!validarData(dataInicial)) {
+      throw new Error("Data inicial inválida. Use o formato AAAA-MM-DD.");
+    }
+
+    condicoes.push("date >= ?");
+    parametros.push(dataInicial);
+  }
+
+  if (dataFinal !== undefined && dataFinal !== "") {
+    if (!validarData(dataFinal)) {
+      throw new Error("Data final inválida. Use o formato AAAA-MM-DD.");
+    }
+
+    condicoes.push("date <= ?");
+    parametros.push(dataFinal);
+  }
+
+  if (dataInicial && dataFinal && dataInicial > dataFinal) {
+    throw new Error("A data inicial não pode ser posterior à data final.");
+  }
+
+  if (tipo !== undefined && tipo !== "") {
+    if (typeof tipo !== "string") {
+      throw new Error("Tipo inválido. Use receita ou despesa.");
+    }
+
+    const tipoNormalizado = tipo.trim().toLowerCase();
+
+    if (!["receita", "despesa"].includes(tipoNormalizado)) {
+      throw new Error("Tipo inválido. Use receita ou despesa.");
+    }
+
+    condicoes.push("type = ?");
+    parametros.push(tipoNormalizado);
+  }
+
+  if (descricao !== undefined && descricao !== "") {
+    if (typeof descricao !== "string" || !descricao.trim()) {
+      throw new Error("A descrição para busca não pode ficar vazia.");
+    }
+
+    condicoes.push("description LIKE ?");
+    parametros.push(`%${descricao.trim()}%`);
+  }
+
+  const where = condicoes.length ? `WHERE ${condicoes.join(" AND ")}` : "";
+
+  const transacoes = db
+    .prepare(
+      `
+      SELECT id, description, amount, type, date
+      FROM transactions
+      ${where}
+      ORDER BY date DESC, id DESC
+    `,
+    )
+    .all(...parametros);
+
+  return transacoes.map((transacao) => ({
+    ...transacao,
+    amount: transacao.amount / 100,
+  }));
+}
+
 function obterResumoFinanceiro(db) {
   const resultado = db
     .prepare(
@@ -139,5 +218,6 @@ module.exports = {
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  filtrarTransacoes,
   obterResumoFinanceiro,
 };
