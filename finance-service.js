@@ -11,6 +11,14 @@ function validarData(data) {
   );
 }
 
+function validarId(id) {
+  if (!Number.isSafeInteger(id) || id <= 0) {
+    throw new Error("ID inválido. Informe um número inteiro positivo.");
+  }
+
+  return id;
+}
+
 function converterParaCentavos(valor) {
   if (typeof valor !== "number" && typeof valor !== "string") {
     throw new Error(
@@ -107,6 +115,70 @@ function listarTransacoes(db) {
     ...transacao,
     amount: transacao.amount / 100,
   }));
+}
+
+function obterTransacaoPorId(db, id) {
+  validarId(id);
+
+  const transacao = db
+    .prepare(
+      `
+      SELECT id, description, amount, type, date
+      FROM transactions
+      WHERE id = ?
+    `,
+    )
+    .get(id);
+
+  if (!transacao) {
+    return null;
+  }
+
+  return {
+    ...transacao,
+    amount: transacao.amount / 100,
+  };
+}
+
+function atualizarTransacao(db, id, transacao) {
+  validarId(id);
+
+  const dados = validarTransacao(transacao);
+
+  const resultado = db
+    .prepare(
+      `
+      UPDATE transactions
+      SET description = ?, amount = ?, type = ?, date = ?
+      WHERE id = ?
+    `,
+    )
+    .run(dados.description, dados.amount, dados.type, dados.date, id);
+
+  if (resultado.changes === 0) {
+    throw new Error("Transação não encontrada.");
+  }
+
+  return true;
+}
+
+function excluirTransacao(db, id) {
+  validarId(id);
+
+  const resultado = db
+    .prepare(
+      `
+      DELETE FROM transactions
+      WHERE id = ?
+    `,
+    )
+    .run(id);
+
+  if (resultado.changes === 0) {
+    throw new Error("Transação não encontrada.");
+  }
+
+  return true;
 }
 
 function filtrarTransacoes(db, filtros = {}) {
@@ -215,9 +287,13 @@ function obterResumoFinanceiro(db) {
 
 module.exports = {
   validarData,
+  validarId,
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  obterTransacaoPorId,
+  atualizarTransacao,
+  excluirTransacao,
   filtrarTransacoes,
   obterResumoFinanceiro,
 };

@@ -1,4 +1,3 @@
-
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 const db = require("./database");
@@ -38,9 +37,7 @@ async function adicionarTransacao() {
   try {
     const description = (await rl.question("Descrição: ")).trim();
 
-    const valorInformado = (
-      await rl.question("Valor (ex.: 125,50): ")
-    ).trim();
+    const valorInformado = (await rl.question("Valor (ex.: 125,50): ")).trim();
 
     if (!/^\d+(?:[.,]\d{1,2})?$/.test(valorInformado)) {
       console.log("Erro: informe um valor válido, como 125,50.");
@@ -49,13 +46,9 @@ async function adicionarTransacao() {
 
     const amount = Number(valorInformado.replace(",", "."));
 
-    const type = (
-      await rl.question("Tipo (receita/despesa): ")
-    ).trim();
+    const type = (await rl.question("Tipo (receita/despesa): ")).trim();
 
-    const date = (
-      await rl.question("Data (AAAA-MM-DD): ")
-    ).trim();
+    const date = (await rl.question("Data (AAAA-MM-DD): ")).trim();
 
     const id = financeService.adicionarTransacao(db, {
       description,
@@ -113,9 +106,7 @@ async function filtrarTransacoes() {
       await rl.question("Data inicial (AAAA-MM-DD): ")
     ).trim();
 
-    const dataFinal = (
-      await rl.question("Data final (AAAA-MM-DD): ")
-    ).trim();
+    const dataFinal = (await rl.question("Data final (AAAA-MM-DD): ")).trim();
 
     console.log("\nTipos disponíveis:");
     console.log("1 - Receita");
@@ -136,9 +127,7 @@ async function filtrarTransacoes() {
       return;
     }
 
-    const descricao = (
-      await rl.question("Buscar por descrição: ")
-    ).trim();
+    const descricao = (await rl.question("Buscar por descrição: ")).trim();
 
     const transacoes = financeService.filtrarTransacoes(db, {
       dataInicial,
@@ -154,6 +143,147 @@ async function filtrarTransacoes() {
     }
 
     console.error("Erro ao filtrar transações:", error.message);
+  }
+}
+
+async function editarTransacao() {
+  try {
+    console.log("\n========== EDITAR TRANSAÇÃO ==========");
+
+    const idInformado = (
+      await rl.question("Informe o ID da transação: ")
+    ).trim();
+
+    if (!/^\d+$/.test(idInformado)) {
+      console.log("Erro: informe um ID numérico válido.");
+      return;
+    }
+
+    const id = Number(idInformado);
+
+    const transacao = financeService.obterTransacaoPorId(db, id);
+
+    if (!transacao) {
+      console.log("Transação não encontrada.");
+      return;
+    }
+
+    console.log("\nDados atuais:");
+    exibirTransacoes([transacao], "TRANSAÇÃO SELECIONADA");
+
+    console.log("\nPressione Enter para manter o valor atual.");
+
+    const descriptionInformada = (
+      await rl.question(`Descrição (${transacao.description}): `)
+    ).trim();
+
+    const valorInformado = (
+      await rl.question(`Valor (${formatarMoeda(transacao.amount)}): `)
+    ).trim();
+
+    let amount = transacao.amount;
+
+    if (valorInformado !== "") {
+      if (!/^\d+(?:[.,]\d{1,2})?$/.test(valorInformado)) {
+        console.log("Erro: informe um valor válido, como 125,50.");
+        return;
+      }
+
+      amount = Number(valorInformado.replace(",", "."));
+    }
+
+    console.log("\nTipos disponíveis:");
+    console.log("1 - Receita");
+    console.log("2 - Despesa");
+
+    const tipoInformado = (
+      await rl.question(`Tipo atual (${transacao.type}): `)
+    ).trim();
+
+    let type = transacao.type;
+
+    if (tipoInformado === "1") {
+      type = "receita";
+    } else if (tipoInformado === "2") {
+      type = "despesa";
+    } else if (tipoInformado !== "") {
+      console.log("Erro: opção de tipo inválida.");
+      return;
+    }
+
+    const dateInformada = (
+      await rl.question(`Data (${transacao.date}): `)
+    ).trim();
+
+    const dadosAtualizados = {
+      description: descriptionInformada || transacao.description,
+      amount,
+      type,
+      date: dateInformada || transacao.date,
+    };
+
+    financeService.atualizarTransacao(db, id, dadosAtualizados);
+
+    console.log("\nTransação atualizada com sucesso!");
+
+    const transacaoAtualizada = financeService.obterTransacaoPorId(db, id);
+
+    exibirTransacoes([transacaoAtualizada], "TRANSAÇÃO ATUALIZADA");
+  } catch (error) {
+    if (encerramentoSolicitado) {
+      return;
+    }
+
+    console.error("Erro ao editar transação:", error.message);
+  }
+}
+
+async function excluirTransacao() {
+  try {
+    console.log("\n========== EXCLUIR TRANSAÇÃO ==========");
+
+    const idInformado = (
+      await rl.question("Informe o ID da transação: ")
+    ).trim();
+
+    if (!/^\d+$/.test(idInformado)) {
+      console.log("Erro: informe um ID numérico válido.");
+      return;
+    }
+
+    const id = Number(idInformado);
+
+    const transacao = financeService.obterTransacaoPorId(db, id);
+
+    if (!transacao) {
+      console.log("Transação não encontrada.");
+      return;
+    }
+
+    exibirTransacoes([transacao], "TRANSAÇÃO SELECIONADA");
+
+    const confirmacao = (
+      await rl.question(
+        "\nTem certeza que deseja excluir esta transação? (s/n): ",
+      )
+    )
+      .trim()
+      .toLowerCase();
+
+    if (confirmacao !== "s") {
+      console.log("Exclusão cancelada.");
+      return;
+    }
+
+    financeService.excluirTransacao(db, id);
+
+    console.log("Transação excluída com sucesso!");
+  } catch (error) {
+    if (encerramentoSolicitado) {
+      return;
+    }
+
+    console.error("Erro ao excluir transação:", error.message);
   }
 }
 
@@ -181,12 +311,12 @@ async function iniciarAplicacao() {
 2 - Listar transações
 3 - Consultar saldo
 4 - Filtrar transações
+5 - Editar transação
+6 - Excluir transação
 0 - Sair
 `);
 
-    const opcao = (
-      await rl.question("Escolha uma opção: ")
-    ).trim();
+    const opcao = (await rl.question("Escolha uma opção: ")).trim();
 
     switch (opcao) {
       case "1":
@@ -205,6 +335,13 @@ async function iniciarAplicacao() {
         await filtrarTransacoes();
         break;
 
+      case "5":
+        await editarTransacao();
+        break;
+
+      case "6":
+        await excluirTransacao();
+        break;
       case "0":
         encerramentoSolicitado = true;
         console.log("Aplicação encerrada.");

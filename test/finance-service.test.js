@@ -7,9 +7,13 @@ const path = require("node:path");
 
 const {
   validarData,
+  validarId,
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  obterTransacaoPorId,
+  atualizarTransacao,
+  excluirTransacao,
   filtrarTransacoes,
   obterResumoFinanceiro,
 } = require("../finance-service");
@@ -677,4 +681,169 @@ test("rejeita filtros que não sejam um objeto válido", () => {
       /filtros devem ser informados em um objeto válido/i,
     );
   }
+});
+
+test("busca uma transação pelo ID", () => {
+  const id = adicionarTransacao(db, {
+    description: "Compra",
+    amount: 50.75,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  const resultado = obterTransacaoPorId(db, Number(id));
+
+  assert.equal(resultado.id, Number(id));
+  assert.equal(resultado.description, "Compra");
+  assert.equal(resultado.amount, 50.75);
+  assert.equal(resultado.type, "despesa");
+});
+
+test("retorna null quando o ID não existe", () => {
+  assert.equal(obterTransacaoPorId(db, 999), null);
+});
+
+test("rejeita IDs inválidos na busca", () => {
+  for (const id of [0, -1, 1.5, "1", null, undefined, NaN]) {
+    assert.throws(() => obterTransacaoPorId(db, id), /ID inválido/i);
+  }
+});
+
+test("atualiza todos os campos de uma transação", () => {
+  const id = adicionarTransacao(db, {
+    description: "Compra antiga",
+    amount: 50,
+    type: "despesa",
+    date: "2026-10-20",
+  });
+
+  atualizarTransacao(db, Number(id), {
+    description: "Compra atualizada",
+    amount: 125.9,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  const resultado = obterTransacaoPorId(db, Number(id));
+
+  assert.equal(resultado.description, "Compra atualizada");
+  assert.equal(resultado.amount, 125.9);
+  assert.equal(resultado.type, "receita");
+  assert.equal(resultado.date, "2026-10-29");
+});
+
+test("mantém o valor atualizado em centavos inteiros no banco", () => {
+  const id = adicionarTransacao(db, {
+    description: "Compra",
+    amount: 10,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  atualizarTransacao(db, Number(id), {
+    description: "Compra atualizada",
+    amount: 25.9,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  const resultado = db
+    .prepare("SELECT amount FROM transactions WHERE id = ?")
+    .get(Number(id));
+
+  assert.equal(resultado.amount, 2590);
+  assert.equal(Number.isInteger(resultado.amount), true);
+});
+
+test("rejeita atualização com dados inválidos", () => {
+  const id = adicionarTransacao(db, {
+    description: "Compra",
+    amount: 50,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  assert.throws(
+    () =>
+      atualizarTransacao(db, Number(id), {
+        description: "",
+        amount: 100,
+        type: "receita",
+        date: "2026-10-29",
+      }),
+    /descrição não pode ficar vazia/i,
+  );
+
+  assert.equal(obterTransacaoPorId(db, Number(id)).description, "Compra");
+});
+
+test("rejeita atualização de uma transação inexistente", () => {
+  assert.throws(
+    () =>
+      atualizarTransacao(db, 999, {
+        description: "Teste",
+        amount: 100,
+        type: "receita",
+        date: "2026-10-29",
+      }),
+    /transação não encontrada/i,
+  );
+});
+
+test("rejeita IDs inválidos na atualização e exclusão", () => {
+  for (const id of [0, -1, 1.5, "1", null, undefined]) {
+    assert.throws(
+      () =>
+        atualizarTransacao(db, id, {
+          description: "Teste",
+          amount: 100,
+          type: "receita",
+          date: "2026-10-29",
+        }),
+      /ID inválido/i,
+    );
+
+    assert.throws(() => excluirTransacao(db, id), /ID inválido/i);
+  }
+});
+
+test("exclui uma transação existente", () => {
+  const id = adicionarTransacao(db, {
+    description: "Compra para excluir",
+    amount: 50,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  const resultado = excluirTransacao(db, Number(id));
+
+  assert.equal(resultado, true);
+  assert.equal(obterTransacaoPorId(db, Number(id)), null);
+});
+
+test("não exclui outras transações ao excluir uma específica", () => {
+  const idExcluir = adicionarTransacao(db, {
+    description: "Compra para excluir",
+    amount: 50,
+    type: "despesa",
+    date: "2026-10-28",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra que deve permanecer",
+    amount: 100,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  excluirTransacao(db, Number(idExcluir));
+
+  const transacoes = listarTransacoes(db);
+
+  assert.equal(transacoes.length, 1);
+  assert.equal(transacoes[0].description, "Compra que deve permanecer");
+});
+
+test("rejeita exclusão de uma transação inexistente", () => {
+  assert.throws(() => excluirTransacao(db, 999), /transação não encontrada/i);
 });
