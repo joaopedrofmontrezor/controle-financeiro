@@ -17,6 +17,7 @@ const {
   excluirTransacao,
   filtrarTransacoes,
   obterResumoFinanceiro,
+  gerarCsvTransacoes,
 } = require("../finance-service");
 
 let db;
@@ -953,10 +954,7 @@ test("rejeita valores que não sejam arrays de transações", () => {
 
 test("rejeita números de página inválidos", () => {
   for (const pagina of [0, -1, 1.5, "2", null, NaN, Infinity]) {
-    assert.throws(
-      () => paginarTransacoes([], pagina),
-      /página inválida/i,
-    );
+    assert.throws(() => paginarTransacoes([], pagina), /página inválida/i);
   }
 });
 
@@ -980,4 +978,85 @@ test("preserva a ordem original das transações", () => {
     resultado.dados.map((transacao) => transacao.id),
     [6, 7, 8, 9, 10],
   );
+});
+
+test("gera CSV com cabeçalho e transações formatadas", () => {
+  const transacoes = [
+    {
+      id: 1,
+      description: "Salário",
+      amount: 2500.5,
+      type: "receita",
+      date: "2026-10-29",
+    },
+    {
+      id: 2,
+      description: "Aluguel",
+      amount: 850.75,
+      type: "despesa",
+      date: "2026-10-28",
+    },
+  ];
+
+  const resultado = gerarCsvTransacoes(transacoes);
+
+  assert.equal(
+    resultado,
+    '\uFEFF"ID";"Descrição";"Valor";"Tipo";"Data"\r\n' +
+      '"1";"Salário";"2500,50";"receita";"2026-10-29"\r\n' +
+      '"2";"Aluguel";"850,75";"despesa";"2026-10-28"',
+  );
+});
+
+test("gera CSV com BOM UTF-8", () => {
+  const resultado = gerarCsvTransacoes([]);
+
+  assert.equal(resultado.charCodeAt(0), 0xfeff);
+});
+
+test("gera CSV mesmo quando não existem transações", () => {
+  const resultado = gerarCsvTransacoes([]);
+
+  assert.equal(resultado, '\uFEFF"ID";"Descrição";"Valor";"Tipo";"Data"');
+});
+
+test("escapa aspas e separadores na descrição", () => {
+  const transacoes = [
+    {
+      id: 1,
+      description: 'Compra de "arroz"; mercado',
+      amount: 25.9,
+      type: "despesa",
+      date: "2026-10-29",
+    },
+  ];
+
+  const resultado = gerarCsvTransacoes(transacoes);
+
+  assert.ok(resultado.includes('"Compra de ""arroz""; mercado"'));
+});
+
+test("protege descrições que poderiam ser interpretadas como fórmulas", () => {
+  const transacoes = [
+    {
+      id: 1,
+      description: "=SOMA(A1:A10)",
+      amount: 10,
+      type: "despesa",
+      date: "2026-10-29",
+    },
+  ];
+
+  const resultado = gerarCsvTransacoes(transacoes);
+
+  assert.ok(resultado.includes('"\'=SOMA(A1:A10)"'));
+});
+
+test("rejeita valores que não sejam arrays", () => {
+  for (const transacoes of [null, undefined, {}, "teste", 123]) {
+    assert.throws(
+      () => gerarCsvTransacoes(transacoes),
+      /transações devem ser fornecidas em um array/i,
+    );
+  }
 });
