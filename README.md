@@ -2,29 +2,64 @@
 
 Aplicação de linha de comando para gerenciamento de finanças pessoais, desenvolvida com **Node.js, JavaScript e SQLite**.
 
-O sistema permite cadastrar receitas e despesas, consultar o extrato financeiro e acompanhar o resumo das movimentações, incluindo receitas, despesas e saldo.
+O sistema permite cadastrar, consultar, filtrar, editar e excluir receitas e despesas, acompanhar indicadores financeiros por meio de um dashboard no terminal e exportar movimentações para arquivos CSV.
 
-O projeto foi desenvolvido para praticar conceitos importantes de desenvolvimento de software, como separação de responsabilidades, validação de dados, persistência em banco de dados e testes automatizados.
+O projeto foi desenvolvido com foco em boas práticas de engenharia de software, incluindo separação de responsabilidades, validação de dados, persistência em banco de dados, tratamento de erros, testes automatizados e integração contínua.
 
 ## ✨ Funcionalidades
 
+### Gerenciamento de transações
 - Cadastro de receitas e despesas.
+- Listagem do extrato financeiro, ordenado da movimentação mais recente para a mais antiga.
+- Paginação do extrato, com navegação entre páginas.
+- Edição de transações existentes por ID.
+- Exclusão de transações com confirmação.
+- Consulta de transações individuais.
+
+### Filtros
+- Filtro por data inicial.
+- Filtro por data final.
+- Filtro por tipo de transação: receita ou despesa.
+- Busca por descrição.
+- Combinação de diferentes filtros em uma única consulta.
+
+### Dashboard financeiro
+- Total de receitas.
+- Total de despesas.
+- Saldo atual.
+- Quantidade de receitas e despesas.
+- Maior receita registrada.
+- Maior despesa registrada.
+- Percentual de despesas em relação às receitas.
+
+### Exportação de dados
+- Exportação de todas as transações para CSV.
+- Exportação de transações utilizando filtros.
+- Cabeçalhos em português.
+- Formatação de valores monetários.
+- Compatibilidade com Excel, incluindo BOM UTF-8.
+- Proteção contra fórmulas maliciosas em campos exportados.
+
+### Validações e segurança
 - Validação de descrição, valor, tipo e data.
+- Verificação de datas reais no formato `AAAA-MM-DD`.
+- Aceitação de vírgula ou ponto como separador decimal.
+- Limitação de valores a duas casas decimais.
 - Normalização de descrições e tipos de transação.
-- Persistência local utilizando SQLite.
-- Consulta do extrato ordenado da data mais recente para a mais antiga.
-- Cálculo dos totais de receitas, despesas e saldo.
-- Suporte a valores monetários com até duas casas decimais.
+- Utilização de consultas parametrizadas para operações no SQLite.
 - Armazenamento de valores monetários em centavos inteiros.
-- Testes automatizados com o módulo nativo `node:test`.
 
 ## 🛠️ Tecnologias
 
-- **Node.js** — ambiente de execução JavaScript.
-- **JavaScript** — implementação das funcionalidades e regras de negócio.
-- **SQLite** — banco de dados relacional local.
-- **better-sqlite3** — integração entre Node.js e SQLite.
-- **node:test** — execução dos testes automatizados.
+| Tecnologia | Utilização |
+|---|---|
+| **Node.js** | Ambiente de execução JavaScript. |
+| **JavaScript** | Implementação das funcionalidades e regras de negócio. |
+| **SQLite** | Banco de dados relacional local. |
+| **better-sqlite3** | Integração entre Node.js e SQLite. |
+| **node:test** | Execução dos testes automatizados. |
+| **Git e GitHub** | Versionamento e hospedagem do código. |
+| **GitHub Actions** | Integração contínua e execução automatizada dos testes. |
 
 ## 📋 Pré-requisitos
 
@@ -54,11 +89,15 @@ cd controle-financeiro
 npm ci
 ```
 
-Caso não tenha o arquivo `package-lock.json`, utilize `npm install`.
+Caso não tenha o arquivo `package-lock.json`, utilize:
+
+```bash
+npm install
+```
 
 ## ▶️ Como executar
 
-Inicie a aplicação com:
+Inicie a aplicação:
 
 ```bash
 npm start
@@ -70,12 +109,14 @@ O sistema apresentará um menu interativo com as seguintes opções:
 1 - Cadastrar transação
 2 - Listar transações
 3 - Consultar saldo
+4 - Filtrar transações
+5 - Editar transação
+6 - Excluir transação
+7 - Exportar transações para CSV
 0 - Sair
 ```
 
-Ao cadastrar uma transação, informe a descrição, o valor, o tipo e a data.
-
-Exemplo:
+### Exemplo de cadastro
 
 ```text
 Descrição: Salário
@@ -84,7 +125,51 @@ Tipo: receita
 Data: 2026-10-29
 ```
 
-O valor aceita vírgula ou ponto como separador decimal, com até duas casas decimais. A data deve seguir o formato `AAAA-MM-DD`.
+O valor aceita vírgula ou ponto como separador decimal, com até duas casas decimais.
+
+A data deve seguir o formato `AAAA-MM-DD`.
+
+## 📊 Dashboard financeiro
+
+A opção de consulta de saldo apresenta um painel com os principais indicadores financeiros:
+
+```text
+========== DASHBOARD FINANCEIRO ==========
+
+RESUMO GERAL
+------------------------------------------
+Total de receitas:       R$ 5.000,00
+Total de despesas:       R$ 2.300,00
+Saldo atual:             R$ 2.700,00
+
+ESTATÍSTICAS
+------------------------------------------
+Quantidade de receitas:  12
+Quantidade de despesas:  8
+Maior receita:            R$ 2.500,00
+Maior despesa:            R$ 800,00
+
+INDICADORES
+------------------------------------------
+Despesas sobre receitas: 46,00%
+
+==========================================
+```
+
+*Os valores apresentados são ilustrativos.*
+
+## 📄 Exportação CSV
+
+O sistema permite exportar as transações cadastradas para arquivos CSV.
+
+Existem duas modalidades:
+
+- **Exportar todas as transações:** gera um arquivo com todas as movimentações registradas.
+- **Exportar transações com filtros:** permite selecionar um período, tipo de transação e descrição antes da exportação.
+
+Os arquivos são gerados no diretório `exports/`, criado automaticamente quando necessário.
+
+O CSV utiliza ponto e vírgula como separador de campos, valores monetários com vírgula decimal e codificação UTF-8 com BOM para facilitar a abertura no Excel.
 
 ## 🧪 Testes automatizados
 
@@ -96,30 +181,35 @@ npm test
 
 Os testes utilizam o módulo nativo `node:test` e um banco SQLite temporário, isolado do banco utilizado pela aplicação.
 
-A suíte verifica, entre outros aspectos:
+A suíte contempla testes relacionados a:
 
 - Validação de datas e dados de entrada.
 - Rejeição de valores inválidos ou com mais de duas casas decimais.
-- Conversão de valores para centavos inteiros.
+- Conversão de valores monetários para centavos inteiros.
 - Cadastro e recuperação de transações.
 - Ordenação do extrato.
+- Paginação e navegação entre páginas.
+- Filtragem por diferentes critérios.
+- Edição e exclusão de transações.
 - Cálculo de receitas, despesas e saldo.
-- Tratamento de saldo negativo.
-- Comportamento quando não existem transações.
-
-**Status atual:** 18 testes automatizados passando.
+- Indicadores do dashboard financeiro.
+- Geração e formatação de arquivos CSV.
+- Proteção contra injeção de fórmulas em arquivos exportados.
+- Tratamento de cenários sem transações cadastradas.
 
 ## 🏗️ Arquitetura e estrutura do projeto
 
-O projeto separa a interface de linha de comando, as regras de negócio e o acesso ao banco de dados.
+O projeto utiliza uma organização que separa a interface de linha de comando, as regras de negócio e o acesso ao banco de dados.
 
 ```text
 controle-financeiro/
-├── test/
-│   └── finance-service.test.js
 ├── .github/
 │   └── workflows/
 │       └── ci.yml
+├── test/
+│   └── finance-service.test.js
+├── exports/
+│   └── arquivos CSV gerados localmente
 ├── database.js
 ├── finance-service.js
 ├── main.js
@@ -131,7 +221,7 @@ controle-financeiro/
 
 ### Responsabilidade dos arquivos
 
-| Arquivo | Responsabilidade |
+| Arquivo ou diretório | Responsabilidade |
 |---|---|
 | `main.js` | Interface de linha de comando e interação com o usuário. |
 | `finance-service.js` | Validação dos dados, regras de negócio e operações financeiras. |
@@ -140,12 +230,15 @@ controle-financeiro/
 | `.github/workflows/ci.yml` | Execução automatizada dos testes no GitHub Actions. |
 | `package.json` | Dependências e scripts do projeto. |
 | `package-lock.json` | Registro das versões resolvidas das dependências. |
+| `exports/` | Armazenamento local dos arquivos CSV gerados pela aplicação. |
 
 ## 💾 Armazenamento de dados
 
-O sistema utiliza o SQLite para persistir as transações localmente no arquivo `finance.db`, criado na pasta do projeto durante a inicialização.
+O sistema utiliza SQLite para persistir as transações localmente no arquivo `finance.db`, criado na pasta do projeto durante a inicialização.
 
-Os valores monetários são armazenados em **centavos inteiros**, em vez de números decimais. Por exemplo:
+Os valores monetários são armazenados em **centavos inteiros**, em vez de números decimais.
+
+Exemplos:
 
 | Valor apresentado | Valor armazenado |
 |---|---:|
@@ -157,22 +250,22 @@ Essa estratégia reduz problemas de precisão em operações financeiras com nú
 
 O banco também utiliza índices para apoiar consultas por data e tipo de transação.
 
-> **Importante:** o arquivo `finance.db` contém os dados locais da aplicação e não deve ser enviado ao GitHub. Mantenha backups se precisar preservar suas transações.
+> **Importante:** os arquivos `finance.db` e `exports/` contêm dados locais da aplicação e não devem ser enviados ao GitHub. Mantenha backups caso precise preservar suas movimentações.
 
 ## 🔄 Integração contínua
 
-O projeto possui um fluxo de integração contínua com **GitHub Actions**, configurado para executar os testes automatizados em eventos de envio de código e abertura ou atualização de pull requests.
+O projeto possui um fluxo de integração contínua com **GitHub Actions**.
 
-Isso ajuda a identificar regressões antes que alterações sejam incorporadas ao projeto.
+O pipeline executa os testes automatizados em eventos de envio de código e abertura ou atualização de pull requests, ajudando a identificar regressões antes da incorporação de alterações ao projeto.
 
 ## 🗺️ Melhorias futuras
 
-- Edição e exclusão de transações.
-- Filtros por período e categoria.
-- Relatórios mensais.
-- Exportação de dados para CSV.
-- Categorias personalizadas.
-- Interface gráfica.
+- Relatórios financeiros mensais.
+- Comparação de receitas e despesas entre períodos.
+- Evolução financeira ao longo dos meses.
+- Categorias personalizadas para transações.
+- Exportação para planilhas XLSX.
+- Interface gráfica para gerenciamento financeiro.
 - Melhorias adicionais na cobertura de testes.
 
 ## 👨‍💻 Autor
