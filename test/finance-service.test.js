@@ -10,6 +10,7 @@ const {
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  filtrarTransacoes,
   obterResumoFinanceiro,
 } = require("../finance-service");
 
@@ -299,7 +300,6 @@ test("calcula saldo negativo quando as despesas superam as receitas", () => {
   assert.equal(resumo.saldo, -80);
 });
 
-
 test("rejeita transações que não são objetos válidos", () => {
   for (const transacao of [null, undefined, [], "transação", 123]) {
     assert.throws(
@@ -410,4 +410,271 @@ test("ordena transações da mesma data pelo ID decrescente", () => {
 
   assert.equal(transacoes[0].description, "Segunda transação");
   assert.equal(transacoes[1].description, "Primeira transação");
+});
+
+test("filtra transações por período", () => {
+  adicionarTransacao(db, {
+    description: "Compra antiga",
+    amount: 50,
+    type: "despesa",
+    date: "2026-09-20",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra de outubro",
+    amount: 100,
+    type: "despesa",
+    date: "2026-10-15",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra de novembro",
+    amount: 80,
+    type: "despesa",
+    date: "2026-11-05",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    dataInicial: "2026-10-01",
+    dataFinal: "2026-10-31",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].description, "Compra de outubro");
+});
+
+test("filtra transações a partir de uma data inicial", () => {
+  adicionarTransacao(db, {
+    description: "Compra antiga",
+    amount: 50,
+    type: "despesa",
+    date: "2026-09-20",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra recente",
+    amount: 100,
+    type: "despesa",
+    date: "2026-10-15",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    dataInicial: "2026-10-01",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].description, "Compra recente");
+});
+
+test("filtra transações até uma data final", () => {
+  adicionarTransacao(db, {
+    description: "Compra antiga",
+    amount: 50,
+    type: "despesa",
+    date: "2026-09-20",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra recente",
+    amount: 100,
+    type: "despesa",
+    date: "2026-11-15",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    dataFinal: "2026-10-31",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].description, "Compra antiga");
+});
+
+test("filtra transações por tipo", () => {
+  adicionarTransacao(db, {
+    description: "Salário",
+    amount: 2000,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  adicionarTransacao(db, {
+    description: "Aluguel",
+    amount: 750,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    tipo: "despesa",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].type, "despesa");
+});
+
+test("normaliza o tipo informado no filtro", () => {
+  adicionarTransacao(db, {
+    description: "Salário",
+    amount: 2000,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    tipo: " RECEITA ",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].type, "receita");
+});
+
+test("busca transações por parte da descrição", () => {
+  adicionarTransacao(db, {
+    description: "Compra no supermercado",
+    amount: 150,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  adicionarTransacao(db, {
+    description: "Pagamento de aluguel",
+    amount: 800,
+    type: "despesa",
+    date: "2026-10-29",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    descricao: "supermercado",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].description, "Compra no supermercado");
+});
+
+test("combina período, tipo e descrição na mesma consulta", () => {
+  adicionarTransacao(db, {
+    description: "Compra no mercado",
+    amount: 100,
+    type: "despesa",
+    date: "2026-10-15",
+  });
+
+  adicionarTransacao(db, {
+    description: "Salário mensal",
+    amount: 2000,
+    type: "receita",
+    date: "2026-10-15",
+  });
+
+  adicionarTransacao(db, {
+    description: "Compra no mercado",
+    amount: 80,
+    type: "despesa",
+    date: "2026-11-15",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    dataInicial: "2026-10-01",
+    dataFinal: "2026-10-31",
+    tipo: "despesa",
+    descricao: "mercado",
+  });
+
+  assert.equal(resultado.length, 1);
+  assert.equal(resultado[0].description, "Compra no mercado");
+  assert.equal(resultado[0].amount, 100);
+});
+
+test("retorna todas as transações quando nenhum filtro é informado", () => {
+  adicionarTransacao(db, {
+    description: "Salário",
+    amount: 2000,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  adicionarTransacao(db, {
+    description: "Aluguel",
+    amount: 750,
+    type: "despesa",
+    date: "2026-10-28",
+  });
+
+  const resultado = filtrarTransacoes(db, {});
+
+  assert.equal(resultado.length, 2);
+  assert.equal(resultado[0].description, "Salário");
+});
+
+test("retorna lista vazia quando nenhum resultado corresponde aos filtros", () => {
+  adicionarTransacao(db, {
+    description: "Salário",
+    amount: 2000,
+    type: "receita",
+    date: "2026-10-29",
+  });
+
+  const resultado = filtrarTransacoes(db, {
+    tipo: "despesa",
+  });
+
+  assert.deepEqual(resultado, []);
+});
+
+test("rejeita datas inválidas nos filtros", () => {
+  assert.throws(
+    () =>
+      filtrarTransacoes(db, {
+        dataInicial: "2026-02-30",
+      }),
+    /data inicial inválida/i,
+  );
+
+  assert.throws(
+    () =>
+      filtrarTransacoes(db, {
+        dataFinal: "29/10/2026",
+      }),
+    /data final inválida/i,
+  );
+});
+
+test("rejeita período com data inicial posterior à data final", () => {
+  assert.throws(
+    () =>
+      filtrarTransacoes(db, {
+        dataInicial: "2026-11-01",
+        dataFinal: "2026-10-01",
+      }),
+    /data inicial não pode ser posterior à data final/i,
+  );
+});
+
+test("rejeita tipo inválido nos filtros", () => {
+  assert.throws(
+    () =>
+      filtrarTransacoes(db, {
+        tipo: "transferência",
+      }),
+    /tipo inválido/i,
+  );
+});
+
+test("rejeita descrição vazia nos filtros", () => {
+  assert.throws(
+    () =>
+      filtrarTransacoes(db, {
+        descricao: "   ",
+      }),
+    /descrição para busca não pode ficar vazia/i,
+  );
+});
+
+test("rejeita filtros que não sejam um objeto válido", () => {
+  for (const filtros of [null, [], "teste", 123]) {
+    assert.throws(
+      () => filtrarTransacoes(db, filtros),
+      /filtros devem ser informados em um objeto válido/i,
+    );
+  }
 });
