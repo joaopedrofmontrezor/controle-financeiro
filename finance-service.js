@@ -117,6 +117,36 @@ function listarTransacoes(db) {
   }));
 }
 
+function paginarTransacoes(transacoes, pagina = 1, itensPorPagina = 10) {
+  if (!Array.isArray(transacoes)) {
+    throw new Error("As transações devem ser fornecidas em um array.");
+  }
+
+  if (!Number.isSafeInteger(pagina) || pagina <= 0) {
+    throw new Error("Página inválida.");
+  }
+
+  if (!Number.isSafeInteger(itensPorPagina) || itensPorPagina <= 0) {
+    throw new Error("Quantidade de itens por página inválida.");
+  }
+
+  const totalItens = transacoes.length;
+  const totalPaginas = Math.max(1, Math.ceil(totalItens / itensPorPagina));
+
+  const paginaAtual = Math.min(pagina, totalPaginas);
+
+  const inicio = (paginaAtual - 1) * itensPorPagina;
+  const fim = inicio + itensPorPagina;
+
+  return {
+    dados: transacoes.slice(inicio, fim),
+    paginaAtual,
+    totalPaginas,
+    totalItens,
+    itensPorPagina,
+  };
+}
+
 function obterTransacaoPorId(db, id) {
   validarId(id);
 
@@ -291,6 +321,7 @@ module.exports = {
   validarTransacao,
   adicionarTransacao,
   listarTransacoes,
+  paginarTransacoes,
   obterTransacaoPorId,
   atualizarTransacao,
   excluirTransacao,
